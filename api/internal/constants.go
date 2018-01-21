@@ -5,6 +5,4 @@ const (
 	EventsTable     = "events"
 	TimestampColumn = "timestamp"
 	PainLevelColumn = "pain_level"
-	StressedColumn  = "stressed"
-	FlareColumn     = "flare"
 )

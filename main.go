@@ -8,10 +8,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/johanbrandhorst/chronic-pain-tracker/api"
@@ -87,7 +86,11 @@ func main() {
 		logger.WithError(err).Fatal("Failed to dial gRPC server")
 	}
 
-	mux := runtime.NewServeMux()
+	mux := runtime.NewServeMux(
+		runtime.WithMarshalerOption("*", &runtime.JSONPb{
+			EmitDefaults: true,
+		}),
+	)
 	err = proto.RegisterPainTrackerHandler(context.Background(), mux, cc)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to register pain tracker in gRPC-gateway")

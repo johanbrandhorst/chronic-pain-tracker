@@ -13,28 +13,12 @@ service PainTracker {
             body: "*"
         };
     }
-    rpc ToggleFlare(google.protobuf.Empty) returns (google.protobuf.Empty) {
-        option (google.api.http) = {
-            post: "/api/v1/flare"
-        };
-    }
-    rpc ToggleStress(google.protobuf.Empty) returns (google.protobuf.Empty) {
-        option (google.api.http) = {
-            post: "/api/v1/stress"
-        };
-    }
-    rpc ToggleNoPain(google.protobuf.Empty) returns (google.protobuf.Empty) {
-        option (google.api.http) = {
-            post: "/api/v1/nopain"
-        };
-    }
 }
 
 enum PainLevel {
     NO_PAIN = 0;
-    MINOR = 1;
-    SIGNIFICANT = 2;
-    SEVERE = 3;
+    SIGNIFICANT = 1;
+    SEVERE = 2;
 }
 
 message PainUpdate {
@@ -58,6 +42,4 @@ message GetEventsRequest {
 message Event {
     google.protobuf.Timestamp timestamp = 1;
     PainLevel pain_level = 2;
-    bool stressed = 3;
-    bool flare = 4;
 }

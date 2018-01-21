@@ -108,196 +108,15 @@ func NewServer(logger *logrus.Logger, pqURL url.URL) (*Server, error) {
 }
 
 func (s *Server) SetPainLevel(ctx context.Context, req *proto.PainUpdate) (*empty.Empty, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	var stressed bool
-	var flare bool
-	q := s.sb.Select(
-		internal.StressedColumn,
-		internal.FlareColumn,
-	).From(
-		internal.EventsTable,
-	).OrderBy(
-		internal.TimestampColumn + " DESC",
-	).Limit(
-		1,
-	)
-
-	err = sqrl.QueryRowWith(stdlibQueryRow(tx.QueryRow), q).Scan(
-		&stressed, &flare,
-	)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
 	var now pgtype.Timestamptz
-	now.Time = time.Now()
-	now.Status = pgtype.Present
-	_, err = s.sb.Insert(
+	_ = now.Set(time.Now())
+	_, err := s.sb.Insert(
 		internal.EventsTable,
 	).Values(
-		&now, req.GetPainLevel().String(), stressed, flare,
+		&now, req.GetPainLevel().String(),
 	).RunWith(
-		tx,
-	).Exec()
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return new(empty.Empty), nil
-}
-
-func (s *Server) ToggleFlare(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	var stressed bool
-	var flare bool
-	var painLevel string
-	q := s.sb.Select(
-		internal.PainLevelColumn,
-		internal.StressedColumn,
-		internal.FlareColumn,
-	).From(
-		internal.EventsTable,
-	).OrderBy(
-		internal.TimestampColumn + " DESC",
-	).Limit(
-		1,
-	)
-
-	err = sqrl.QueryRowWith(stdlibQueryRow(tx.QueryRow), q).Scan(
-		&painLevel, &stressed, &flare,
-	)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	var now pgtype.Timestamptz
-	now.Time = time.Now()
-	now.Status = pgtype.Present
-	_, err = s.sb.Insert(
-		internal.EventsTable,
-	).Values(
-		&now, painLevel, stressed, !flare,
-	).RunWith(
-		tx,
-	).Exec()
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return new(empty.Empty), nil
-}
-
-func (s *Server) ToggleStress(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	var stressed bool
-	var flare bool
-	var painLevel string
-	q := s.sb.Select(
-		internal.PainLevelColumn,
-		internal.StressedColumn,
-		internal.FlareColumn,
-	).From(
-		internal.EventsTable,
-	).OrderBy(
-		internal.TimestampColumn + " DESC",
-	).Limit(
-		1,
-	)
-
-	err = sqrl.QueryRowWith(stdlibQueryRow(tx.QueryRow), q).Scan(
-		&painLevel, &stressed, &flare,
-	)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	var now pgtype.Timestamptz
-	now.Time = time.Now()
-	now.Status = pgtype.Present
-	_, err = s.sb.Insert(
-		internal.EventsTable,
-	).Values(
-		&now, painLevel, !stressed, flare,
-	).RunWith(
-		tx,
-	).Exec()
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return new(empty.Empty), nil
-}
-
-func (s *Server) ToggleNoPain(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	var stressed bool
-	q := s.sb.Select(
-		internal.StressedColumn,
-	).From(
-		internal.EventsTable,
-	).OrderBy(
-		internal.TimestampColumn + " DESC",
-	).Limit(
-		1,
-	)
-
-	err = sqrl.QueryRowWith(stdlibQueryRow(tx.QueryRow), q).Scan(
-		&stressed,
-	)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	var now pgtype.Timestamptz
-	now.Time = time.Now()
-	now.Status = pgtype.Present
-	_, err = s.sb.Insert(
-		internal.EventsTable,
-	).Values(
-		&now, proto.PainLevel_NO_PAIN.String(), stressed, false,
-	).RunWith(
-		tx,
-	).Exec()
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
+		s.db,
+	).ExecContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -309,15 +128,13 @@ func (s *Server) GetEvents(req *proto.GetEventsRequest, srv proto.Monitor_GetEve
 	q := s.sb.Select(
 		internal.TimestampColumn,
 		internal.PainLevelColumn,
-		internal.StressedColumn,
-		internal.FlareColumn,
 	).From(
 		internal.EventsTable,
 	)
 
 	if req.GetStart().GetSeconds() > 0 || req.GetStart().GetNanos() > 0 {
 		var startTime pgtype.Timestamptz
-		startTime.Set(time.Unix(req.GetStart().GetSeconds(), int64(req.GetStart().GetNanos())))
+		_ = startTime.Set(time.Unix(req.GetStart().GetSeconds(), int64(req.GetStart().GetNanos())))
 		buf, _ := startTime.EncodeText(nil, nil)
 		q = q.Where(sqrl.GtOrEq{
 			internal.TimestampColumn: string(buf),
@@ -326,7 +143,7 @@ func (s *Server) GetEvents(req *proto.GetEventsRequest, srv proto.Monitor_GetEve
 
 	if req.GetEnd().GetSeconds() > 0 || req.GetEnd().GetNanos() > 0 {
 		var endTime pgtype.Timestamptz
-		endTime.Set(time.Unix(req.GetEnd().GetSeconds(), int64(req.GetEnd().GetNanos())))
+		_ = endTime.Set(time.Unix(req.GetEnd().GetSeconds(), int64(req.GetEnd().GetNanos())))
 		buf, _ := endTime.EncodeText(nil, nil)
 		q = q.Where(sqrl.LtOrEq{
 			internal.TimestampColumn: string(buf),
@@ -339,30 +156,24 @@ func (s *Server) GetEvents(req *proto.GetEventsRequest, srv proto.Monitor_GetEve
 	}
 
 	for rows.Next() {
-		var event proto.Event
 		var when pgtype.Timestamptz
 		var painLevel string
-		err = rows.Scan(&when, &painLevel, &event.Stressed, &event.Flare)
+		err = rows.Scan(&when, &painLevel)
 		if err != nil {
 			return err
 		}
 
-		event.Timestamp = &timestamp.Timestamp{
-			Seconds: when.Time.Unix(),
-			Nanos:   int32(when.Time.UnixNano()),
-		}
-		event.PainLevel = proto.PainLevel(proto.PainLevel_value[painLevel])
-
-		err = srv.Send(&event)
+		err = srv.Send(&proto.Event{
+			Timestamp: &timestamp.Timestamp{
+				Seconds: when.Time.Unix(),
+				Nanos:   int32(when.Time.UnixNano()),
+			},
+			PainLevel: proto.PainLevel(proto.PainLevel_value[painLevel]),
+		})
 		if err != nil {
 			return err
 		}
 	}
 
-	err = rows.Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rows.Err()
 }

@@ -28,15 +28,11 @@ func ensureSchema(db *sql.DB, sb sqrl.StatementBuilderType) error {
 	_, err = tx.Exec(fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS %s ("+
 			"%s timestamptz NOT NULL,"+
-			"%s text NOT NULL,"+
-			"%s boolean NOT NULL,"+
-			"%s boolean NOT NULL"+
+			"%s text NOT NULL"+
 			")",
 		internal.EventsTable,
 		internal.TimestampColumn,
 		internal.PainLevelColumn,
-		internal.StressedColumn,
-		internal.FlareColumn,
 	))
 	if err != nil {
 		return err
