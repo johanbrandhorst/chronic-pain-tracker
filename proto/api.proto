@@ -1,0 +1,63 @@
+syntax="proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/johanbrandhorst/chronic-pain-tracker/proto";
+
+service PainTracker {
+    rpc SetPainLevel(PainUpdate) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/v1/pain"
+            body: "*"
+        };
+    }
+    rpc ToggleFlare(google.protobuf.Empty) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/v1/flare"
+        };
+    }
+    rpc ToggleStress(google.protobuf.Empty) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/v1/stress"
+        };
+    }
+    rpc ToggleNoPain(google.protobuf.Empty) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/v1/nopain"
+        };
+    }
+}
+
+enum PainLevel {
+    NO_PAIN = 0;
+    MINOR = 1;
+    SIGNIFICANT = 2;
+    SEVERE = 3;
+}
+
+message PainUpdate {
+    PainLevel pain_level = 1;
+}
+
+service Monitor {
+    rpc GetEvents(GetEventsRequest) returns (stream Event) {
+        option (google.api.http) = {
+            post: "/api/v1/events",
+            body: "*"
+        };
+    }
+}
+
+message GetEventsRequest {
+    google.protobuf.Timestamp start = 1;
+    google.protobuf.Timestamp end = 2;
+}
+
+message Event {
+    google.protobuf.Timestamp timestamp = 1;
+    PainLevel pain_level = 2;
+    bool stressed = 3;
+    bool flare = 4;
+}
