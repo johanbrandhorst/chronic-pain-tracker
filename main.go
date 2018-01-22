@@ -41,6 +41,7 @@ type config struct {
 	GRPCAddr    string  `default:"localhost:8081" envconfig:"GRPC_ADDR" desc:"Address to serve the gRPC Server on."`
 	GatewayAddr string  `default:"0.0.0.0:8080" split_words:"true" desc:"Address to serve the gRPC-Gateway on."`
 	PostgresURL psqlURL `required:"true" envconfig:"POSTGRES_URL" desc:"URL to the Postgres database used."`
+	Passphrase  string  `required:"true" desc:"Passphrase used to validate new data input."`
 }
 
 func main() {
@@ -61,7 +62,7 @@ func main() {
 
 	s := grpc.NewServer()
 
-	srv, err := api.NewServer(logger, envOpts.PostgresURL.URL())
+	srv, err := api.NewServer(logger, envOpts.PostgresURL.URL(), envOpts.Passphrase)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to connect to Postgres")
 	}

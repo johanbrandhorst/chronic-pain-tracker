@@ -7,16 +7,17 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/cenk/backoff"
 	"github.com/elgris/sqrl"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/log/logrusadapter"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/stdlib"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/johanbrandhorst/chronic-pain-tracker/api/internal"
 	"github.com/johanbrandhorst/chronic-pain-tracker/proto"
@@ -28,11 +29,12 @@ var _ proto.PainTrackerServer = (*Server)(nil)
 var _ proto.MonitorServer = (*Server)(nil)
 
 type Server struct {
-	db *sql.DB
-	sb sqrl.StatementBuilderType
+	db         *sql.DB
+	sb         sqrl.StatementBuilderType
+	passphrase string
 }
 
-func NewServer(logger *logrus.Logger, pqURL url.URL) (*Server, error) {
+func NewServer(logger *logrus.Logger, pqURL url.URL, passphrase string) (*Server, error) {
 	bk := backoff.NewExponentialBackOff()
 	bk.MaxElapsedTime = 0 // Ensure we never stop
 	// Retry dialling until connection established
@@ -102,12 +104,17 @@ func NewServer(logger *logrus.Logger, pqURL url.URL) (*Server, error) {
 	}
 
 	return &Server{
-		db: db,
-		sb: sb,
+		db:         db,
+		sb:         sb,
+		passphrase: passphrase,
 	}, nil
 }
 
 func (s *Server) SetPainLevel(ctx context.Context, req *proto.PainUpdate) (*empty.Empty, error) {
+	if req.GetPassphrase() != s.passphrase {
+		return nil, status.Error(codes.Unauthenticated, "invalid passphrase")
+	}
+
 	var now pgtype.Timestamptz
 	_ = now.Set(time.Now())
 	_, err := s.sb.Insert(

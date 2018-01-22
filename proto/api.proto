@@ -23,6 +23,7 @@ enum PainLevel {
 
 message PainUpdate {
     PainLevel pain_level = 1;
+    string passphrase = 2;
 }
 
 service Monitor {
