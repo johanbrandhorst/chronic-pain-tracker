@@ -157,6 +157,10 @@ func (s *Server) GetEvents(req *proto.GetEventsRequest, srv proto.Monitor_GetEve
 		})
 	}
 
+	q = q.OrderBy(
+		internal.TimestampColumn + " ASC",
+	)
+
 	rows, err := q.RunWith(s.db).QueryContext(srv.Context())
 	if err != nil {
 		return err
